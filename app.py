@@ -5,11 +5,13 @@ caffe_root = 'tps/crfasrnn/caffe/'
 import sys
 sys.path.insert(0, caffe_root + 'python')
 
+import numpy as np
 
 from os import listdir
 from os.path import isfile, join
 import shutil
 import tarfile
+import numpy
 import tempfile
 
 from flask import Flask, flash, request, redirect, render_template, session, abort, url_for, send_file
@@ -135,7 +137,7 @@ def do_upload():
         filepath_original = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(file.filename))
         filepath_downsampled = os.path.join(app.config['UPLOAD_FOLDER'], 'downsampled-' + secure_filename(file.filename))
         filepath_upsampled = os.path.join(app.config['UPLOAD_FOLDER'], 'upsampled-' + secure_filename(file.filename))
-        filepath_maskimage = os.path.join(app.config['UPLOAD_FOLDER'], 'maskimage-' + secure_filename(file.filename))
+        filepath_maskimage = os.path.join(app.config['UPLOAD_FOLDER'], 'maskimage-' + secure_filename(file.filename)[:-4] + ".npy")
         filepath_tarfile = os.path.join(app.config['UPLOAD_FOLDER'], 'tar-' + secure_filename(file.filename) + '.tar')
         filepath_lzma = filepath_tarfile + '.xz'
 
@@ -156,19 +158,21 @@ def do_upload():
             plt.imshow(mask_image)
             plt.show()
             w, h = mask_image.size
+            mask = np.zeros((w,h), dtype=(int, 3))
             for x in range(0, w):
                 for y in range(0, h):
                     pixel = mask_image.getpixel((x,y))
                     if pixel[0] > 0 or pixel[1] > 0 or pixel[2] > 0:
                         upscalePixel = upsampled_image.getpixel((x,y))
-                        r = pixel[0]# - upscalePixel[0]
-                        g = pixel[1]# - upscalePixel[1]
-                        b = pixel[2]# - upscalePixel[2]
-                        mask_image.putpixel((x,y), (r,g,b))
-            mask_image.save(filepath_maskimage)
+                        r = int(pixel[0]) - int(upscalePixel[0])
+                        g = int(pixel[1]) - int(upscalePixel[1])
+                        b = int(pixel[2]) - int(upscalePixel[2])
+                        mask[x,y] = (r,g,b)
+            np.save(filepath_maskimage, mask)
         else:
-            mask_image = PILImage.new("RGB", upsampled_image.size, "black")
-            mask_image.save(filepath_maskimage)
+            w, h = upsampled_image.size
+            mask = np.zeros((w,h), dtype=(int, 3))
+            np.save(filepath_maskimage, mask)
 
         tar = tarfile.open(filepath_tarfile, "w")
         for name in [filepath_maskimage, filepath_downsampled]:
@@ -193,31 +197,29 @@ def download():
     print request.args.get('name')
 
     call(["tar", "xf", filename_original])
-    filepath_maskimage = os.path.join(app.config['UPLOAD_FOLDER'], 'maskimage-' +  request.args.get('name')[4:-7])
+    filepath_maskimage = os.path.join(app.config['UPLOAD_FOLDER'], 'maskimage-' +  request.args.get('name')[4:-11] + ".npy")
     filepath_downsampled = os.path.join(app.config['UPLOAD_FOLDER'],'downsampled-' +  request.args.get('name')[4:-7])
 
     src = cv2.imread(filepath_downsampled)
     dest_inter_cubic = cv2.resize(src, None, fx=4, fy=4, interpolation = cv2.INTER_CUBIC)
     cv2.imwrite(temp, dest_inter_cubic)
 
-    mask_image = PILImage.open(filepath_maskimage)
-    mask_image = mask_image.convert('RGB')
-    plt.imshow(mask_image)
-    plt.show()
+    mask = np.load(filepath_maskimage)
     temp_image = PILImage.open(temp)
     temp_image = temp_image.convert('RGB')
     plt.imshow(temp_image)
     plt.show()
 
-    w, h = mask_image.size
+    w, h, _ = mask.shape
     if w < 500:
         for x in range(0, w):
             for y in range(0, h):
-                pixel = mask_image.getpixel((x,y))
-                if pixel != (0,0,0):
-                    r = pixel[0]# + temp_pixel[0]
-                    g = pixel[1]# + temp_pixel[1]
-                    b = pixel[2]# + temp_pixel[2]
+                pixel = mask[x,y]
+                temp_pixel = temp_image.getpixel((x,y))
+                if pixel[0] > 0 or pixel[1] > 0 or pixel[2] > 0:
+                    r = pixel[0] + temp_pixel[0]
+                    g = pixel[1] + temp_pixel[1]
+                    b = pixel[2] + temp_pixel[2]
                     temp_image.putpixel((x,y), (r,g,b))
 
     plt.imshow(temp_image)
