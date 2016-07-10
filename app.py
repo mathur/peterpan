@@ -223,6 +223,7 @@ def download():
     plt.imshow(temp_image)
     plt.show()
 
+    temp_image.save(temp)
     os.remove(filepath_maskimage)
     os.remove(filepath_downsampled)
 
@@ -230,4 +231,4 @@ def download():
 
 if __name__ == "__main__":
     app.secret_key = os.urandom(12)
-    app.run(host='0.0.0.0', port=8080, debug=True)
+    app.run(host='0.0.0.0', port=8070, debug=True)
