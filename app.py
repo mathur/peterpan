@@ -153,15 +153,17 @@ def do_upload():
         upsampled_image = PILImage.open(filepath_upsampled)
         if  upsampled_image.size[0] < 500:
             mask_image = semantic_segmentation.find_subjects(filepath_original)
+            plt.imshow(mask_image)
+            plt.show()
             w, h = mask_image.size
             for x in range(0, w):
                 for y in range(0, h):
                     pixel = mask_image.getpixel((x,y))
                     if pixel[0] > 0 or pixel[1] > 0 or pixel[2] > 0:
                         upscalePixel = upsampled_image.getpixel((x,y))
-                        r = pixel[0] - upscalePixel[0]
-                        g = pixel[1] - upscalePixel[1]
-                        b = pixel[2] - upscalePixel[2]
+                        r = pixel[0]# - upscalePixel[0]
+                        g = pixel[1]# - upscalePixel[1]
+                        b = pixel[2]# - upscalePixel[2]
                         mask_image.putpixel((x,y), (r,g,b))
             mask_image.save(filepath_maskimage)
         else:
@@ -199,18 +201,27 @@ def download():
     cv2.imwrite(temp, dest_inter_cubic)
 
     mask_image = PILImage.open(filepath_maskimage)
+    mask_image = mask_image.convert('RGB')
+    plt.imshow(mask_image)
+    plt.show()
     temp_image = PILImage.open(temp)
+    temp_image = temp_image.convert('RGB')
+    plt.imshow(temp_image)
+    plt.show()
 
     w, h = mask_image.size
     if w < 500:
         for x in range(0, w):
             for y in range(0, h):
                 pixel = mask_image.getpixel((x,y))
-                temp_pixel = temp_image.getpixel((x,y))
-                r = pixel[0] + temp_pixel[0]
-                g = pixel[1] + temp_pixel[1]
-                b = pixel[2] + temp_pixel[2]
-                temp_image.putpixel((x,y), (r,g,b))
+                if pixel != (0,0,0):
+                    r = pixel[0]# + temp_pixel[0]
+                    g = pixel[1]# + temp_pixel[1]
+                    b = pixel[2]# + temp_pixel[2]
+                    temp_image.putpixel((x,y), (r,g,b))
+
+    plt.imshow(temp_image)
+    plt.show()
 
     os.remove(filepath_maskimage)
     os.remove(filepath_downsampled)
