@@ -153,7 +153,6 @@ def do_upload():
         upsampled_image = PILImage.open(filepath_upsampled)
         if  upsampled_image.size[0] < 500:
             mask_image = semantic_segmentation.find_subjects(filepath_original)
-
             w, h = mask_image.size
             for x in range(0, w):
                 for y in range(0, h):
@@ -163,8 +162,8 @@ def do_upload():
                         r = pixel[0] - upscalePixel[0]
                         g = pixel[1] - upscalePixel[1]
                         b = pixel[2] - upscalePixel[2]
-                    mask_image.putpixel((x,y), (r,g,b))
-                    mask_image.save(filepath_maskimage)
+                        mask_image.putpixel((x,y), (r,g,b))
+            mask_image.save(filepath_maskimage)
         else:
             mask_image = PILImage.new("RGB", upsampled_image.size, "black")
             mask_image.save(filepath_maskimage)
@@ -177,9 +176,9 @@ def do_upload():
         # compress with lzma
         call(["xz", filepath_tarfile])
 
-        os.remove(filepath_original)
-        os.remove(filepath_downsampled)
-        os.remove(filepath_upsampled)
+        #os.remove(filepath_original)
+        #os.remove(filepath_downsampled)
+        #os.remove(filepath_upsampled)
        # os.remove(filepath_maskimage)
         return redirect(url_for('files'))
 
